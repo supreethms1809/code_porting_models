@@ -13,3 +13,8 @@ ENV BASE_DIR=/workspace/code_porting_models
 
 # Set the entrypoint to bash
 ENTRYPOINT ["/bin/bash"]
+
+# To build the image, use the following command:
+# docker build -t code_porting_models .
+# To run the container with GPU support, use the following command:
+# docker run --gpus all -it --rm -v $(pwd):/workspace code_porting_models

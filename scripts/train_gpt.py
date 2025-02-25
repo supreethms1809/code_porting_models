@@ -14,9 +14,21 @@ import os
 import yaml
 import argparse
 import logging
+import torch
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
+
+# Check for available device
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
+logging.info(f"Using device: {device}")
+
 
 def main():
     logging.info("Loading config...")
