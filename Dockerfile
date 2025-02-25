@@ -8,7 +8,8 @@ WORKDIR /workspace
 RUN pip install --no-cache-dir transformers datasets accelerate deepspeed
 RUN pip install --no-cache-dir tensorboardX tensorboard
 RUN pip install --no-cache-dir wandb
-RUN git clone https://github.com/supreethms1809/code_porting_models.git
+
+ENV BASE_DIR=/workspace/code_porting_models
 
 # Set the entrypoint to bash
 ENTRYPOINT ["/bin/bash"]

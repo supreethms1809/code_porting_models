@@ -1,0 +1,4 @@
+model_path: /model/
+model_type: gpt
+model_name: gpt-2
+dataset_path: /dataset/
