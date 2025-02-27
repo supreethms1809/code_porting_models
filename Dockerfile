@@ -7,9 +7,12 @@ WORKDIR /workspace
 # Install additional Python packages
 RUN pip install --no-cache-dir transformers datasets accelerate deepspeed
 RUN pip install --no-cache-dir tensorboardX tensorboard
-RUN pip install --no-cache-dir wandb
+RUN pip install --no-cache-dir wandb tiktoken blobfile sentencepiece
+RUN pip install --no-cache-dir -U "huggingface_hub[cli]"
 
 ENV BASE_DIR=/workspace/code_porting_models
+ENV HF_HOME=/workspace/.cache/huggingface/hub
+ENV TRANSFORMERS_CACHE=/workspace/.cache/huggingface/hub
 
 # Set the entrypoint to bash
 ENTRYPOINT ["/bin/bash"]

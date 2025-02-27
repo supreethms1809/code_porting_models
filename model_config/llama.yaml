@@ -1,0 +1,4 @@
+model_path: /workspace/models/llama/codellama/CodeLlama-7b/
+model_type: llama
+model_name: codellama7b
+dataset_path: /workspace/code_porting_models/dataset/
