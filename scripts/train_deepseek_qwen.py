@@ -8,18 +8,19 @@ from src.utils.logging import setup_log
 from transformers import AutoModelForCausalLM
 from transformers import AutoTokenizer
 
-save_directory = f"/home/ssuresh/models/hpcgroup/hpc-coder-v2-16b"
+save_directory = f"/home/ssuresh/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
-tokenizer = AutoTokenizer.from_pretrained("hpcgroup/hpc-coder-v2-16b", trust_remote_code=True)
-tokenizer.save_pretrained("hpc-coder-v2-16b")
-model = AutoModelForCausalLM.from_pretrained("hpcgroup/hpc-coder-v2-16b", trust_remote_code=True)
-model.save_pretrained("hpc-coder-v2-16b")
+tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
+tokenizer.save_pretrained(save_directory)
+model = AutoModelForCausalLM.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
+model.save_pretrained(save_directory)
 
 logger = setup_log()
 logger.info("Model and tokenizer loaded successfully.")
 
 def generate_code(prompt):
     inputs = tokenizer(prompt, return_tensors="pt")
+    logger.info(f"Inputs: {model.generate.__dict__}")
     outputs = model.generate(**inputs)
     generated_code = tokenizer.decode(outputs[0], skip_special_tokens=True)
     

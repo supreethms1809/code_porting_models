@@ -8,23 +8,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.utils.logging import setup_log
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
+save_directory = f"/home/ssuresh/models/meta-llama/CodeLlama-7b-Instruct-hf"
+
 # Load the model and tokenizer
-tokenizer = AutoTokenizer.from_pretrained("meta-llama/CodeLlama-7b-hf")
-model = AutoModelForCausalLM.from_pretrained("meta-llama/CodeLlama-7b-hf")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/CodeLlama-7b-Instruct-hf")
+tokenizer.save_pretrained(save_directory)
+model = AutoModelForCausalLM.from_pretrained("meta-llama/CodeLlama-7b-Instruct-hf")
+model.save_pretrained(save_directory)
 
 logger = setup_log()
 logger.info("Model and tokenizer loaded successfully.")
 
 def generate_code(prompt):
-    """
-    Generate code using the loaded model and tokenizer.
-    
-    Args:
-        prompt (str): The input prompt for code generation.
-        
-    Returns:
-        str: The generated code.
-    """
     inputs = tokenizer(prompt, return_tensors="pt")
     outputs = model.generate(**inputs)
     generated_code = tokenizer.decode(outputs[0], skip_special_tokens=True)
@@ -32,7 +27,9 @@ def generate_code(prompt):
     return generated_code
 
 
-code_prompt = "def add(a, b):\n    # This function adds two numbers\n    return a + b"
+code_prompt = '''
+write a c++ code to find the sum of two arrays
+'''
 generated_code = generate_code(code_prompt)
 print("Generated Code:")
 print(generated_code)
