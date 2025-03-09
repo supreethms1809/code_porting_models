@@ -8,11 +8,11 @@ from src.utils.logging import setup_log
 from transformers import AutoModelForCausalLM
 from transformers import AutoTokenizer
 
-save_directory = f"/home/ssuresh/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+save_directory = f"/home/ssuresh/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
 
-tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
+tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-32B")
 tokenizer.save_pretrained(save_directory)
-model = AutoModelForCausalLM.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
+model = AutoModelForCausalLM.from_pretrained("deepseek-ai/DeepSeek-R1-Distill-Qwen-32B")
 model.save_pretrained(save_directory)
 
 logger = setup_log()
