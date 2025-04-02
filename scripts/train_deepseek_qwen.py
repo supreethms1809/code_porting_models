@@ -1,6 +1,8 @@
 import os
 import sys
 import yaml
+from datasets import load_dataset
+
 # Add the root directory of the project to the PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.utils.logging import setup_log
