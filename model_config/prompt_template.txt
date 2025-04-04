@@ -1,0 +1,20 @@
+Title: Convert C/C++ Code to CUDA and add Performance Analysis functions around the kernel
+Description: I need assistance in converting a piece of C/C++ code into CUDA to leverage GPU parallelism. 
+The process should include the following steps:
+1. Code Conversion: Convert the provided C/C++ code into CUDA while ensuring correctness and optimizing for GPU architecture. 
+Provide a detailed explanation of the changes made during the conversion, highlighting how the code leverages CUDA's parallelism.
+2. Sample Input and Output:
+Generate random input data that can be used to test both the original C/C++ code and the CUDA version.
+Include the expected output for verification purposes.
+3. Create a Makefile to build and run the code: Include any necessary dependencies or environment setup (e.g., CUDA toolkit version, compiler flags).
+4. Code Sections: Present the original C/C++ code, the converted CUDA code, and any additional helper scripts or files in separate, clearly labeled sections.
+
+Requirements:
+Provide the output in two section
+1. First section with label 'code' with converted code, build and run command with out any analysis text
+2. Second section with label 'analysis' with all the analysis text
+
+Please provide the CUDA equivalent, along with all the requested components.
+Input code to be converted:
+"<code>"
+
