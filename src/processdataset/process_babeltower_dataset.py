@@ -7,6 +7,19 @@ class ProcessBabelTowerDataset:
         """
         self.dataset = dataset
         self.processed_dataset = None
+        # Define the prompt template directly as data within the class.
+        self.template = (
+            "Title: Convert C/C++ Code to CUDA\n"
+            "Description: I need assistance in converting the provided C/C++ code into CUDA for GPU parallelism.\n"
+            "Steps:\n"
+            "1. Convert the C/C++ code to CUDA, optimizing for performance and correctness.\n"
+            "2. Generate sample inputs and expected outputs for testing.\n"
+            "3. Provide a Makefile with build and run instructions (include any necessary dependencies).\n"
+            "4. Structure the output in two sections: a 'code' section containing the CUDA code and commands, and an 'analysis' section discussing the changes.\n"
+            "Input code to be converted:\n"
+            "<code>\n"
+        )
+
 
     def process(self, task = None):
         """
@@ -79,3 +92,16 @@ class ProcessBabelTowerDataset:
 
     def format_input(dataset):
         pass
+
+    # Template is only used for validation and testing
+    def apply_template(self, template_path):
+        """
+        Apply a chat template to the dataset.
+        """
+        # Implement the logic to apply the chat template to the dataset
+        def replace_code(example):
+            final_query = self.template.replace("<code>", example.get("code", ""))
+            return {"final_query": final_query}
+        
+        new_dataset = self.dataset.map(replace_code)
+        return new_dataset
