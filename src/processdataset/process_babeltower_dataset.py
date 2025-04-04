@@ -94,7 +94,7 @@ class ProcessBabelTowerDataset:
         pass
 
     # Template is only used for validation and testing
-    def apply_template(self, template_path):
+    def apply_template(self, task = None):
         """
         Apply a chat template to the dataset.
         """
