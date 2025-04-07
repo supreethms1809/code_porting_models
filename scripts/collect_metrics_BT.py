@@ -10,7 +10,8 @@ parser = argparse.ArgumentParser(description="Collect metrics for the BabelTower
 parser.add_argument(
     "--config_path",
     type=str,
-    default="/home/sureshm/code_porting_models/model_config/DeepSeek-R1-Distill-Qwen-1.5B.yaml",
+    default="/Users/ssuresh/aiml/code_porting_models/model_config/DeepSeek-R1-Distill-Qwen-1.5B.yaml",
+    #default="/home/sureshm/code_porting_models/model_config/DeepSeek-R1-Distill-Qwen-1.5B.yaml",
     help="Path to the configuration file."
 )
 args = parser.parse_args()
@@ -22,12 +23,14 @@ else:
     logging.info(f"Using configuration from: {config_path}")
 
 # Ensure the src directory is in the Python path
-src_dir = '/home/sureshm/code_porting_models/'
+src_dir = '/Users/ssuresh/aiml/code_porting_models/'
+#src_dir = '/home/sureshm/code_porting_models/'
 if src_dir not in sys.path:
     sys.path.append(src_dir)
 
 from src.train_models.evaluate import Evaluate
 from src.processdataset.process_babeltower_dataset import ProcessBabelTowerDataset, ProcessBabelTowerTestValDataset
+from src.models.qwen_ds.qwen_ds_base import QwenDSBase
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from datasets import load_dataset, load_from_disk, Dataset
 
@@ -57,3 +60,10 @@ if not train:
     pds = btpre.process_dataset_for_eval(ds=ds)
     logging.info(f"Processed dataset for evaluation: {pds} entries.")
 
+
+model = QwenDSBase(model_arguments)
+model.load_model_and_tokenizer()
+query = model.structure_message(pds["final_query"][0])
+logging.info(f"Structured message: {query}")
+model_output = model.generate_code(query)
+logging.info(f"Model output: {model_output}")

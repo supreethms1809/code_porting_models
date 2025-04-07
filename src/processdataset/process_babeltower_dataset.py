@@ -97,7 +97,7 @@ class ProcessBabelTowerTestValDataset():
             "1. Convert the C/C++ code to CUDA, optimizing for performance and correctness.\n"
             "2. Generate sample inputs and expected outputs for testing.\n"
             "3. Provide a Makefile with build and run instructions (include any necessary dependencies).\n"
-            "4. Structure the output in two sections: a 'code' section containing the CUDA code and commands, and an 'analysis' section discussing the changes.\n"
+            "4. Structure the output in two sections within the tags: For translated code <code> </code> section containing the CUDA code and commands, and for ananlysis <analysis> </analysis> section discussing the changes.\n"
             "Input code to be converted:\n"
             "<code>\n"
         )
