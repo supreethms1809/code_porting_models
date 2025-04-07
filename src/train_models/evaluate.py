@@ -2,7 +2,6 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from datasets import Dataset
-import evluate
 from codebleu import calc_codebleu
 
 class Evaluate():
@@ -35,8 +34,6 @@ class Evaluate():
             "codebleu": codebleu
         }
 
-           
-
 
     def run_inference(self, dataset, model, tokenizer):
         """
@@ -62,7 +59,7 @@ class Evaluate():
         Calculate precision score based on predictions and references.
         This is a placeholder function and should include the actual logic for precision score calculation.
         """
-        precision = evluate.load('precision')
+        precision = evaluate.load('precision')
         self.precision_metric = precision.compute(
             predictions=predictions,
             references=references
@@ -74,7 +71,7 @@ class Evaluate():
         Calculate accuracy score based on predictions and references.
         This is a placeholder function and should include the actual logic for accuracy score calculation.
         """
-        accuracy = evluate.load('accuracy')
+        accuracy = evaluate.load('accuracy')
         self.accuracy_metric = accuracy.compute(
             predictions=predictions,
             references=references
@@ -84,7 +81,7 @@ class Evaluate():
     def bleu_score(self, predictions, references):
         # Placeholder for BLEU score calculation
         # This should include the actual BLEU score calculation logic
-        bleu = evluate.load('bleu')
+        bleu = evaluate.load('bleu')
         self.bleu_metric = bleu.compute(
             predictions=predictions,
             references=references

@@ -1,0 +1,12 @@
+# Model config
+config_name: DeepSeek-R1-Distill-Qwen-1.5B
+model_type: DeepSeek-R1-Distill-Qwen
+model_family: deepseek-ai
+base_model: Qwen-1.5B
+model_description: DeepSeek-R1 model distilled from Qwen-1.5B for enhanced performance in reasoning tasks.
+model_name: DeepSeek-R1-Distill-Qwen-1.5B
+hf_hub_repo_id: deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+
+# Dataset configuration
+dataset_path: /home/sureshm/code_porting_models/dataset/babeltower
+hf_dataset_repo_id: None
