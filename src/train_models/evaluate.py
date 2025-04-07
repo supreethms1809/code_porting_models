@@ -3,6 +3,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from datasets import Dataset
 from codebleu import calc_codebleu
+import evaluate
 
 class Evaluate():
     def __init__(self, model, tokenizer):

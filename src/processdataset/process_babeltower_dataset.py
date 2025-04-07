@@ -89,25 +89,35 @@ class ProcessBabelTowerTestValDataset():
     """
     def __init__(self, dataset):
         self.dataset = dataset
+                # Define the prompt template directly as data within the class.
+        self.template = (
+            "Title: Convert C/C++ Code to CUDA\n"
+            "Description: I need assistance in converting the provided C/C++ code into CUDA for GPU parallelism.\n"
+            "Steps:\n"
+            "1. Convert the C/C++ code to CUDA, optimizing for performance and correctness.\n"
+            "2. Generate sample inputs and expected outputs for testing.\n"
+            "3. Provide a Makefile with build and run instructions (include any necessary dependencies).\n"
+            "4. Structure the output in two sections: a 'code' section containing the CUDA code and commands, and an 'analysis' section discussing the changes.\n"
+            "Input code to be converted:\n"
+            "<code>\n"
+        )
+    
 
-    def process(self, task = None):
-        if task == "val":
-            self.processed_dataset = self.process_dataset_for_val()
-        elif task == "test":
-            self.processed_dataset = self.process_dataset_for_test()
-        
-
-    def process_dataset_for_val(self):
+    def process_dataset_for_eval(self, ds) -> Dataset:
         """
         Process the dataset for validation.
         """
-        return self.dataset
+        if ds is None:
+            raise ValueError("Dataset is not provided.")
+        # Apply the template to format the input for inference
+        def replace_code(example):
+            final_query = self.template.replace("<code>", example.get("cpp", ""))
+            return {"final_query": final_query}
+        
+        new_ds = ds.map(replace_code)
 
-    def process_dataset_for_test(self):
-        """
-        Process the dataset for testing.
-        """
-        return self.dataset
+        return new_ds
+
     
 def process_dataset_hf_format(
         cpp_path_test=None, 
@@ -170,19 +180,26 @@ def process_dataset_hf_format(
     cuda_val = [cuda_code for cpp_code, cuda_code in parsed_lines_val]
     # Create a Hugging Face Dataset from list of values
     #{"identifier": identifiers, "code": codes})
-    ds = Dataset.from_dict(
+    ds_test = Dataset.from_dict(
         {
-            "test": {
                 "cpp": cpp_test,
                 "cuda": cuda_test
-            },
-            "val": {
+        })
+    ds_val = Dataset.from_dict(
+        {
                 "cpp": cpp_val,
                 "cuda": cuda_val
-            }
         })
+    ds = Dataset.from_dict(
+        {
+            "cpp": cpp_test + cpp_val,
+            "cuda": cuda_test + cuda_val
+        }
+    )
     # Save the dataset to a JSON file
     if save_dir is not None:
+        #ds_test.save_to_disk(save_dir)
+        #ds_val.save_to_disk(save_dir)
         ds.save_to_disk(save_dir)
 
-    return ds
+    return ds, ds_test, ds_val

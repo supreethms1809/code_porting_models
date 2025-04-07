@@ -27,7 +27,7 @@ if src_dir not in sys.path:
     sys.path.append(src_dir)
 
 from src.train_models.evaluate import Evaluate
-from src.processdataset.process_babeltower_dataset import ProcessBabelTowerDataset
+from src.processdataset.process_babeltower_dataset import ProcessBabelTowerDataset, ProcessBabelTowerTestValDataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from datasets import load_dataset, load_from_disk, Dataset
 
@@ -45,15 +45,15 @@ if model is None or tokenizer is None:
 config = model.config
 dataset_path = model_arguments.get('dataset_path')
 dataset_hf = model_arguments.get('hf_dataset_repo_id')
+train = model_arguments.get('train', False)
+if not train:
+    ds = Dataset.load_from_disk(dataset_path)
+    logging.info(
+        f"Loaded dataset from disk: {ds}. Number of entries: {len(ds)}."
+    )
+    btpre = ProcessBabelTowerTestValDataset(
+        dataset=ds
+    )
+    pds = btpre.process_dataset_for_eval(ds=ds)
+    logging.info(f"Processed dataset for evaluation: {pds} entries.")
 
-dataset = Dataset.load_from_disk(dataset_path)
-logging.info(
-    f"Loaded dataset from disk: {dataset_path}. Number of entries: {len(dataset)}."
-)
-btpre = ProcessBabelTowerDataset(
-    dataset=dataset
-)
-pDataset = btpre.process(task="val")
-logging.info(
-    f"Processed dataset for evaluation: {pDataset} entries."
-)
