@@ -97,7 +97,33 @@ class ProcessBabelTowerTestValDataset():
             "1. Convert the C/C++ code to CUDA, optimizing for performance and correctness.\n"
             "2. Generate sample inputs and expected outputs for testing.\n"
             "3. Provide a Makefile with build and run instructions (include any necessary dependencies).\n"
-            "4. Structure the output in two sections within the tags: For translated code <code> </code> section containing the CUDA code and commands, and for ananlysis <analysis> </analysis> section discussing the changes.\n"
+            "4. Structure the output in two clear and seprate sections\n"
+            "5. Section 1: code\n"
+            "6. Section 2: Everything else (Summarize the analysis)\n"
+            "Input code to be converted:\n"
+            "<code>\n"
+        )
+        self.templateOacc = (
+            "Title: Convert C/C++ Code to CUDA\n"
+            "Description: I need assistance in converting the provided C/C++ code into OpenACC for GPU parallelism.\n"
+            "Steps:\n"
+            "1. Add OpenACC directives to the C/C++ code, optimizing for performance and correctness.\n"
+            "2. Generate sample inputs and expected outputs for testing.\n"
+            "3. Provide a Makefile with build and run instructions (include any necessary dependencies).\n"
+            "4. Structure the output in two clear and seprate sections\n"
+            "5. Section 1: code\n"
+            "6. Section 2: Everything else (Summarize the analysis)\n"
+            "Input code to be converted:\n"
+            "<code>\n"
+        )
+
+        self.min_template = (
+            "Convert the following C/C++ code into a CUDA kernel function and don't use CUDA library. Only output the CUDA kernel code without any additional explanations or details.\n"
+            "Input code to be converted:\n"
+            "<code>\n"
+        )
+        self.min_templateOacc = (
+            "Convert the following C/C++ code into a OpenACC kernel function. Only output the OpenACC kernel code without any additional explanations or details.\n"
             "Input code to be converted:\n"
             "<code>\n"
         )
@@ -111,8 +137,9 @@ class ProcessBabelTowerTestValDataset():
             raise ValueError("Dataset is not provided.")
         # Apply the template to format the input for inference
         def replace_code(example):
-            final_query = self.template.replace("<code>", example.get("cpp", ""))
-            return {"final_query": final_query}
+            final_query = self.min_template.replace("<code>", example.get("cpp", ""))
+            oacc_query = self.min_templateOacc.replace("<code>", example.get("cpp", ""))
+            return {"cuda_query": final_query, "oacc_query": oacc_query}
         
         new_ds = ds.map(replace_code)
 

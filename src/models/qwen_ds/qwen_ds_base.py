@@ -12,8 +12,8 @@ from src.train_models.evaluate import Evaluate
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 # Ensure the src directory is in the Python path
-src_dir = '/Users/ssuresh/aiml/code_porting_models/'
-#src_dir = '/home/sureshm/code_porting_models/'
+#src_dir = '/Users/ssuresh/aiml/code_porting_models/'
+src_dir = '/home/sureshm/code_porting_models/'
 if src_dir not in sys.path:
     sys.path.append(src_dir)
 
@@ -21,8 +21,8 @@ parser = argparse.ArgumentParser(description="Load and process the BabelTower da
 parser.add_argument(
     "--config_path",
     type=str,
-    default="/Users/ssuresh/aiml/code_porting_models/model_config/DeepSeek-R1-Distill-Qwen-1.5B.yaml",
-    #default="/home/sureshm/code_porting_models/model_config/DeepSeek-R1-Distill-Qwen-1.5B.yaml",
+    #default="/Users/ssuresh/aiml/code_porting_models/model_config/DeepSeek-R1-Distill-Qwen-1.5B.yaml",
+    default="/home/sureshm/code_porting_models/model_config/DeepSeek-R1-Distill-Qwen-1.5B.yaml",
     help="Path to the configuration file."
 )
 args = parser.parse_args()
@@ -46,6 +46,7 @@ class QwenDSBase:
                     f"Failed to load the model or tokenizer from the specified path: {self.model_arguments.hf_hub_repo_id}"
                 )
             logging.info(f"Model and tokenizer loaded successfully.")
+            
         except Exception as e:
             logging.error(f"Error loading model and tokenizer: {e}")
             raise e
@@ -57,6 +58,7 @@ class QwenDSBase:
             truncation=False,
             max_length=self.model.config.max_position_embeddings
         )
+        return self.model, self.tokenizer, self.eval_pipeline
 
     def structure_message(self, message):
         try:
