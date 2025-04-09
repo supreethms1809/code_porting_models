@@ -37,7 +37,7 @@ from datasets import Dataset, load_dataset
 # Load the dataset
 ds = load_dataset("open-r1/codeforces")
 ds_code = Dataset.load_from_disk("/home/sureshm/DeepRL/dataset/babeltower")
-#ds_code = ds_code.select(range(100))
+ds_code = ds_code.select(range(1000))
 
 logger.info(f"Dataset: {ds_code}")
 
@@ -93,7 +93,7 @@ class PPOAgent():
             output_dir="grpo_output",
             logging_steps=100,
             save_steps=1000,
-            num_train_epochs=1,
+            num_train_epochs=10,
             do_train = True,
         )
         self.trainergrpo = trl.GRPOTrainer(
@@ -122,5 +122,5 @@ ds_code = agent.apply_template(ds_code)
 ds_code = ds_code.remove_columns(["identifier", "code"])
 grpotrainer = agent.create_grpo_trainer(ds_code)
 logger.info(f"ActorCritic model: {grpotrainer}")
-grpotrainer.train(resume_from_checkpoint=True)
+grpotrainer.train(resume_from_checkpoint=None)
 #grpotrainer.save_model("ppo_output")
