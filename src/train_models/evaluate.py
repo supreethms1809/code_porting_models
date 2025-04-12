@@ -3,81 +3,55 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from datasets import Dataset
 from codebleu import calc_codebleu
+import code_bert_score
+import re
 import evaluate
+import json
+import os
+from Levenshtein import distance as levenshtein_distance 
 
 class Evaluate():
-    def __init__(self, model, tokenizer):
-        self.model = model
-        self.tokenizer = tokenizer
+    def __init__(self):
+        # self.model = model
+        # self.tokenizer = tokenizer
         self.bleu_metric = None
         self.codebleu_metric = None
         self.parableu_metric = None
-        self.precision_metric = None
-        self.accuracy_metric = None
+        self.cuda_keywords = ["global", "device", "host", "shared", "constant", "managed", 
+								"restrict", "noinline", "forceinline", "threadIdx", "blockIdx",
+								"blockDim", "gridDim", "warpSize", "__syncthreads()",
+								"__syncthreads_count()", "__syncthreads_and()",
+								"__syncthreads_or()", "__syncwarp()", "__threadfence()",
+								"__threadfence_block()", "__threadfence_system()",
+								"atomicAdd", "atomicSub", "atomicExch", "atomicMin", "atomicMax",
+								"atomicInc", "atomicDec", "atomicCAS", "atomicAnd", "atomicOr",
+								"atomicXor"]
 
-    def evaluate(self, dataset):
+    def eval(self, file_path):
         # Placeholder for evaluation logic
         # This should include loading the model, running inference, and calculating metrics
-        model = self.model
-        tokenizer = self.tokenizer
-        predictions, references = self.run_inference(dataset, model, tokenizer)
+        # Load the inference output 
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            predictions = [item['kernel_code'] for item in data]
+            references = [item['reference'] for item in data]
 
         # Calculate metrics
-        precision = self.precision_score(predictions, references)
-        accuracy = self.accuracy_score(predictions, references)
         bleu = self.bleu_score(predictions, references)
         codebleu = self.codebleu_score(predictions, references)
+        parableu = self.parableu_score(predictions, references, codebleu)
+        code_BERTscore = self.BERTcodescore(predictions, references)
+
+        #codebleu = 0.0
+        #parableu = 0.0 
+        #code_BERTscore = 0.0
 
         return {
-            "precision": precision,
-            "accuracy": accuracy,
             "bleu": bleu,
-            "codebleu": codebleu
+            "codebleu": codebleu,
+            "parableu": parableu,
+            "code_BERTscore": code_BERTscore
         }
-
-
-    def run_inference(self, dataset, model, tokenizer):
-        """
-        Run inference on the provided dataset and return predictions.
-        """
-                # Set the model to evaluation mode
-        model.eval()
-        predictions = None 
-        references = dataset['text']
-        code_generator = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device=0 if torch.cuda.is_available() else -1
-        )
-        input = "Write a openacc program to calculate the sum of two arrays."
-        predictions = code_generator(input)
-
-        return predictions, references
-
-    def precision_score(self, predictions, references):
-        """
-        Calculate precision score based on predictions and references.
-        This is a placeholder function and should include the actual logic for precision score calculation.
-        """
-        precision = evaluate.load('precision')
-        self.precision_metric = precision.compute(
-            predictions=predictions,
-            references=references
-        )
-        return self.precision_metric
-    
-    def accuracy_score(self, predictions, references):
-        """
-        Calculate accuracy score based on predictions and references.
-        This is a placeholder function and should include the actual logic for accuracy score calculation.
-        """
-        accuracy = evaluate.load('accuracy')
-        self.accuracy_metric = accuracy.compute(
-            predictions=predictions,
-            references=references
-        )
-        return self.accuracy_metric
 
     def bleu_score(self, predictions, references):
         # Placeholder for BLEU score calculation
@@ -96,15 +70,57 @@ class Evaluate():
         codebleu = calc_codebleu(
             predictions=predictions,
             references=references,
-            lang = 'cpp',
-            weights=(0.25, 0.25, 0.25, 0.25),
-            tokenizer = None
+            lang = "cpp",
+            weights=(0.25, 0.25, 0.25, 0.25)
         )
+        return codebleu
+    
+    def BERTcodescore(self, predictions, references):
+        # Placeholder for BERTScore calculation
+        # This should include the actual BERTScore calculation logic
+        P, R, F1, F3 = code_bert_score.score(
+            cands=predictions,
+            refs=references,
+            lang = "cpp"
+        )
+        return P.mean(), R.mean(), F1.mean(), F3.mean()
 
-    def parableu_score(self, predictions, references):
+    def cuda_similarity(self, ref: str, pred: str) -> float:
+        ref_kw = {kw for kw in self.cuda_keywords if kw in ref}
+        pred_kw = {kw for kw in self.cuda_keywords if kw in pred}
+        if not ref_kw: return 1.0
+        return len(ref_kw & pred_kw) / len(ref_kw)
+
+    def extract_loop_structure(self, code: str) -> list:
+        code = ''.join(code)
+        return re.findall(r'\bfor\b|\bwhile\b', code)
+
+    def loop_similarity(self, ref: str, pred: str) -> float:
+        ref_loops = self.extract_loop_structure(ref)
+        pred_loops = self.extract_loop_structure(pred)
+        max_len = max(len(ref_loops), len(pred_loops))
+        if max_len == 0: return 1.0
+        dist = levenshtein_distance(ref_loops, pred_loops)
+        return 1 - dist / max_len
+
+    def parallel_semantics_similarity(self, ref: str, pred: str) -> float:
+        ref = ''.join(ref)
+        seq_loops = len(re.findall(r'for\s*\(.*;.*;.*\)', ref))
+        parallel_threads = pred.count('threadIdx')
+        if seq_loops == 0: return 1.0
+        matched = min(seq_loops, parallel_threads)
+        return matched / seq_loops
+
+    def parableu_score(self, predictions, references, codebleu):
         # Placeholder for ParaBLEU score calculation
         # This should include the actual ParaBLEU score calculation logic
-        pass
+        codebleu = codebleu["codebleu"]
+        sim_cuda = self.cuda_similarity(references, predictions)
+        sim_loops = self.loop_similarity(references, predictions)
+        sim_parallel = self.parallel_semantics_similarity(references, predictions)
+        print(f"CUDA similarity: {sim_cuda}, Loop similarity: {sim_loops}, Parallel similarity: {sim_parallel}")
+        parableu = codebleu * sim_cuda * sim_loops * sim_parallel
+        return parableu
 
     def plot_metrics(self, metrics):
         # Placeholder for plotting metrics

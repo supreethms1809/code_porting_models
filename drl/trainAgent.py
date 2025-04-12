@@ -35,8 +35,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import Dataset, load_dataset
 
 # Load the dataset
-ds = load_dataset("open-r1/codeforces")
-ds_code = Dataset.load_from_disk("/home/sureshm/DeepRL/dataset/babeltower")
+#ds = load_dataset("open-r1/codeforces")
+ds_code = Dataset.load_from_disk("/home/sureshm/ssuresh/code_porting_models/dataset/babeltower")
 ds_code = ds_code.select(range(1000))
 
 logger.info(f"Dataset: {ds_code}")
@@ -119,8 +119,13 @@ class PPOAgent():
  
 agent = PPOAgent()
 ds_code = agent.apply_template(ds_code)
-ds_code = ds_code.remove_columns(["identifier", "code"])
-grpotrainer = agent.create_grpo_trainer(ds_code)
-logger.info(f"ActorCritic model: {grpotrainer}")
-grpotrainer.train(resume_from_checkpoint=None)
+logger.info(f"Dataset: {ds_code}")
+
+
+#ds_code = ds_code.remove_columns(["identifier", "code"])
+
+
+#grpotrainer = agent.create_grpo_trainer(ds_code)
+#logger.info(f"ActorCritic model: {grpotrainer}")
+#grpotrainer.train(resume_from_checkpoint=None)
 #grpotrainer.save_model("ppo_output")
