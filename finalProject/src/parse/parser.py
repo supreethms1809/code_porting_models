@@ -54,16 +54,17 @@ class ASTTokenizer:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     
     def walk_tree(self, node, code_bytes):
+        tokens = [node.type]
         if node.child_count == 0:
             text = code_bytes[node.start_byte:node.end_byte].decode("utf8")
             return [text]
-        tokens = []
-        for child in node.children:
-            tokens += self.walk_tree(child, code_bytes)
+        else:
+            for child in node.children:
+                tokens += self.walk_tree(child, code_bytes)
         return tokens
 
     def tokenize_ast(self, root_node, code_str):
         code_bytes = bytes(code_str, "utf8")
         tokens = self.walk_tree(root_node, code_bytes)
-        print(f"Tokens: {tokens}")
-        return self.tokenizer(tokens, is_split_into_words=True, return_tensors="pt")
+        return tokens
+        #return self.tokenizer(tokens, is_split_into_words=True, return_tensors="pt")
