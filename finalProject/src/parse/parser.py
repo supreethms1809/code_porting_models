@@ -30,11 +30,13 @@ class CodeParser:
 
     def parse_cpp(self, code_str):
         tree = self.parsercpp.parse(bytes(code_str, "utf8"))
+        #return tree
         root_node = tree.root_node
         return root_node
 
     def parse_cuda(self, code_str):
         tree = self.parsercuda.parse(bytes(code_str, "utf8"))
+        #return tree
         root_node = tree.root_node
         return root_node
 
@@ -53,18 +55,29 @@ class ASTTokenizer:
         self.model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     
-    def walk_tree(self, node, code_bytes):
+    def walk_tree(self, node, code_bytes) -> list[str]:
         tokens = [node.type]
         if node.child_count == 0:
             text = code_bytes[node.start_byte:node.end_byte].decode("utf8")
-            return [text]
+            tokens+= [text]
         else:
             for child in node.children:
                 tokens += self.walk_tree(child, code_bytes)
         return tokens
 
     def tokenize_ast(self, root_node, code_str):
-        code_bytes = bytes(code_str, "utf8")
+        code_bytes = code_str.encode("utf-8")
         tokens = self.walk_tree(root_node, code_bytes)
         return tokens
         #return self.tokenizer(tokens, is_split_into_words=True, return_tensors="pt")
+
+    def format_ast_tree(self, node, code_bytes, indent=0):
+        indent_str = " " * indent
+        if node.child_count == 0:
+            node_str = f"{indent_str}{node.type}: {code_bytes[node.start_byte:node.end_byte].decode('utf8')}"
+        else:
+            node_str = f"{indent_str}{node.type}"
+        
+        for child in node.children:
+                node_str += "\n" + self.format_ast_tree(child, code_bytes, indent + 1)
+        return node_str

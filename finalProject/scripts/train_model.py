@@ -10,29 +10,41 @@ from src.parse.parser import CodeParser, ASTTokenizer
 from src.mcts.node import mcts_search
 from src.grpo.agent import codeGRPO
 from src.reward_bridge.trace_buffer import TraceBuffer
-from src.transforms.serial_analysis import SerialAnalyzer
-from src.transforms.bottleneck import BottleneckFinder
-from src.transforms.dependency_graph import DependencyAnalyzer
-from src.transforms.parallel_strategies import ParallelStrategySelector
-from src.transforms.insert_parallelism import ParallelismInserter
+from src.model_inference.deepseek_inference import modelInference
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
 # Load your HF dataset
 dataset = Dataset.load_from_disk("/home/sureshm/ssuresh/code_porting_models/dataset/babeltower")
 dataset = dataset.select(range(20))
-model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
 
 parser = CodeParser()
 grpo = codeGRPO()
 buffer = TraceBuffer()
 asttokenizer = ASTTokenizer(model_name)
+default_action = "Translate and Parallelize code from cpp to CUDA"
 
 for example in dataset:
     code_str = example["code"]
+
+    ######### Phase: Read the code and generate the formatted AST ############
     lang = parser.detect_language(code_str)
-    parsed = parser.parse(lang, code_str)
-    tokenized = asttokenizer.tokenize_ast(parsed, code_str)
-    optimized = mcts_search(tokenized, llm=None, iterations=20)
-    ltr_score = grpo.evaluate_trace(trace)
-    buffer.store(trace, ltr_score)
+    code_ast_root = parser.parse(lang, code_str)
+    code_ast_walk = asttokenizer.format_ast_tree(code_ast_root, code_str.encode("utf-8"))
+
+    ######### Phase: Analysis of the code ############
+    analysis_result = modelInference().infer(code_ast_walk)
+    logger.info(f"Analysis result: {analysis_result}")
+
+
+
+
+    
+    #trace_mcts = mcts_search(code_str, code_ast_root, code_ast_walk, default_action, iterations=20, model=model, tokenizer=tokenizer)
+    #ltr_score = grpo.evaluate_trace(trace)
+    #buffer.store(trace, ltr_score)
 
 print(f"Finished processing {len(dataset)} examples.")

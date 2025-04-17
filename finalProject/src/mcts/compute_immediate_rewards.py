@@ -11,6 +11,8 @@ class ComputeImmediateRewards():
                         "atomicAdd", "atomicSub", "atomicExch", "atomicMin", "atomicMax",
                         "atomicInc", "atomicDec", "atomicCAS", "atomicAnd", "atomicOr",
                         "atomicXor"]
+        self.walk = ASTTokenizer("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B").walk_tree
+        self.parser = CodeParser()
 
     def loop_bounds_preserved(self, ast_cpp, ast_cuda):
         cpp_loops = self.extract_for_loops(ast_cpp)
@@ -50,7 +52,7 @@ class ComputeImmediateRewards():
         return any(kw in ast_cuda.text for kw in self.cuda_keywords)
 
     def extract_for_loops(self, ast):
-        return [node for node in ast.walk() if node.type == 'for']
+        return [n for n in self.walk(ast) if n.type == 'for_statement']
 
     def get_loop_range(self, loop_node):
         return (loop_node.init, loop_node.condition, loop_node.increment)
