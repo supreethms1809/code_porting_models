@@ -19,7 +19,7 @@ model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
 # Load your HF dataset
-dataset = Dataset.load_from_disk("/Users/ssuresh/aiml/code_porting_models/dataset/babeltower")
+dataset = Dataset.load_from_disk("/home/sureshm/ssuresh/code_porting_models/dataset/babeltower")
 dataset = dataset.select(range(5))
 
 parser = CodeParser()
@@ -45,7 +45,12 @@ for example in dataset:
     ######### Phase: Generate the trace using MCTS ############
     #trace_mcts = MCTS_search(code_str, extracted_fields, iterations=20)
     trace_mcts = subset_mcts_search(code_str, extracted_fields, iterations=20)
-    logger.info(f"Trace MCTS best: {trace_mcts}")
+    # Generate the code with the best set of actions
+    best_action = trace_mcts.selected_actions[-1] if trace_mcts.selected_actions else default_action
+    translated_code = modelInference().infer_transform(code_str, best_action)
+    logger.info(f"Translated Code: {translated_code.lower()}")
+
+    ######### Phase: Evaluate the trace using GRPO ############
     #ltr_score = grpo.evaluate_trace(trace)
     #buffer.store(trace, ltr_score)
 

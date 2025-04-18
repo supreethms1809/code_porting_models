@@ -103,7 +103,7 @@ def MCTS_search(code_str: str, extracted_fields: str, iterations: int = 1000, ex
 
 class SubsetMCTSNode:
     def __init__(self, selected_actions: list, parent=None):
-        self.selected_actions = selected_actions  # Current subset
+        self.selected_actions = selected_actions
         self.untried_actions = [a for a in TRANSFORMATION_ACTIONS if a not in selected_actions]
         self.children = []
         self.parent = parent
@@ -139,6 +139,14 @@ class SubsetMCTSNode:
         self.total_reward += reward
         if self.parent:
             self.parent.backpropagate(reward)
+
+    def __repr__(self):
+        return f"<Node action={self.selected_actions}, visits={self.visits}, reward={self.total_reward:.2f}>"
+
+    def __print__(self, level=0):
+        print("\t" * level + repr(self))
+        for child in self.children:
+            child.__print__(level + 1)
 
 def subset_mcts_search(code_str: str, extracted_fields: str, iterations: int = 1000, exploration_weight: float = 1.41) -> SubsetMCTSNode:
     root = SubsetMCTSNode([])
