@@ -2,95 +2,174 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from .compute_immediate_rewards import ComputeImmediateRewards
 from src.parse.parser import CodeParser
 from src.parse.parser import ASTTokenizer
+from src.model_inference.deepseek_inference import modelInference
 import hashlib
 import random
+import math
+from typing import List, Optional, Dict, Any
+
+TRANSFORMATION_ACTIONS = [
+    "add '__global__' to the function",
+    "replace_loop_index_with_thread_id_and_block_id",
+    "wrap_loop_body_with_kernel",
+    "insert_boundary_check",
+    "insert_cuda_malloc",
+    "insert_cuda_memcpy",
+    "use_shared_memory",
+    "insert_syncthreads",
+    "flatten_nested_loops",
+    "move_constants_to_device",
+    "add_cuda_kernel_launch_host"
+]
 
 class MCTSNode:
-    def __init__(self, code_str, code_ast_root, code_ast_walk, parent=None, action=None, model=None, tokenizer=None):
-        self.model = model
-        self.tokenizer = tokenizer
+    def __init__(self, code_str, parent=None, action=None):
         # Here code_str is the current state
-        self.code_str = code_str
-        self.code_ast_root = code_ast_root
-        self.code_ast_walk = code_ast_walk
-        self.transformed_code_str = []
-        self.transformed_ast_tree = []
-        self.transformed_ast_walk = []
+        self.code_state = code_str
 
         # class specific variables
         self.parent = parent
         self.action = action
-        self.children = []
+        self.children: List[MCTSNode] = []
         self.visits = 0
         self.total_immediate_reward = 0.0
+        self.untried_actions = []
+        self.state_metadata = {}
+        self.total_reward = 0.0
         self.uid = hashlib.md5(code_str.encode("utf-8")).hexdigest()
 
-        # Parse the transformed code string to get the AST
-        self.parser = CodeParser()
-        self.walk = ASTTokenizer("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B").walk_tree
+    def is_fully_expanded(self) -> bool:
+        return len(self.untried_actions) == 0
 
-    def expand(self, code_str, code_ast_walk, action, n_samples=4):
-        # Need structured output, add langchain here, apply action in sequence vs all at once
-        transformed_code_list = []
-        while len(transformed_code_list) < n_samples:
-            transformed_code_str = llm_transform(code_ast_walk, action, self.model, self.tokenizer)
-            transformed_code_list.append(transformed_code_str)
-        for new_code in transformed_code_str:
-            self.transformed_code_str.append(new_code)
-            new_ast_tree = self.parser.parse(self.parser.detect_language(new_code), new_code)
-            self.transformed_ast_tree.append(new_ast_tree)
-            new_ast_walk = self.walk(new_ast_tree, new_code.encode("utf-8"))
-            self.transformed_ast_walk.append(new_ast_walk)
-            if not any(child.uid == hashlib.md5(new_code.encode()).hexdigest() for child in self.children):
-                self.children.append(MCTSNode(new_code, new_ast_tree, new_ast_walk, parent=self, action=action, model=self.model, tokenizer=self.tokenizer))
-
-    def best_child(self, exploration_weight=1.41):
+    def bestChild(self, exploration_weight=1.41):
         def uct_score(child):
             if child.visits == 0:
                 return float('inf')
-            return (child.total_immediate_reward/child.visits) + exploration_weight * ((2 * (self.visits) ** 0.5) / (1 + child.visits))
+            return (child.total_immediate_reward / child.visits) + exploration_weight * ((2 * (self.visits) ** 0.5) / (1 + child.visits))
         return max(self.children, key=uct_score)
-
-    def backpropagate(self, reward):
+    
+    def backpropagate(self, reward: float):
         self.visits += 1
-        self.total_immediate_reward += reward
+        self.total_reward += reward
         if self.parent:
             self.parent.backpropagate(reward)
 
-def llm_transform(code_ast_walk, action, model, tokenizer):
-    template = """
-    You are a code transformation model. Your task is to transform the given code snippet according to the specified action.
-    The action is: {action}
-    The code snippet is:
-    {code_snippet}
-    Please provide the transformed code snippet. Start with think but only provide the code snippet and don't add any other text.
-    """
-    inputs = tokenizer(template.format(action=action, code_snippet=code_ast_walk), return_tensors="pt")
-    outputs = model.generate(**inputs, max_new_tokens=4098, do_sample=True, temperature=0.6, top_p=0.9, top_k=50)
-    transformed_code = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-    return transformed_code
+    def expand(self, action: str, new_code_str: str) -> 'MCTSNode':
+        child_node = MCTSNode(
+            code_str=new_code_str,
+            parent=self,
+            action=action
+        )
+        self.children.append(child_node)
+        if action in self.untried_actions:
+            self.untried_actions.remove(action)
+        return child_node
+    
+    def __repr__(self):
+        return f"<Node action={self.action}, visits={self.visits}, reward={self.total_reward:.2f}>"
+    
+def apply_action(code_str: str, action: str, extracted_fields: str):
+    # Run it through the model to get the new code
+    translated_code = modelInference().infer_transform(code_str, action)
+    return translated_code
 
-
-def compute_immediate_rewards(code_ast_walk, transformed_ast_walk):
-    compute_reward = ComputeImmediateRewards(code_ast_walk, transformed_ast_walk)
-    # reward is normalized to [0, 1] here 
-    return compute_reward.cuda_accuracy_score()
-
-def mcts_search(code_str, code_ast_root, code_ast_walk, action, model, tokenizer, iterations=10):
-    mcts_node = MCTSNode(code_str, code_ast_root, code_ast_walk, parent=None, model=model, tokenizer=tokenizer)
+def MCTS_search(code_str: str, extracted_fields: str, iterations: int = 1000, exploration_weight: float = 1.41) -> MCTSNode:
+    root = MCTSNode(code_str)
+    root.untried_actions = TRANSFORMATION_ACTIONS.copy()
     for _ in range(iterations):
-        node = mcts_node
+        node = root
+        while not node.is_fully_expanded():
+            if node.untried_actions:
+                retry = True
+                while retry:
+                    action = random.choice(node.untried_actions)
+                    translated_code = apply_action(node.code_state, action, extracted_fields)
+                    if translated_code != "":
+                        retry = False
+                    else:
+                        node.untried_actions.remove(action)
+                node = node.expand(action, translated_code)
+            else:
+                node = node.bestChild(exploration_weight)
+
+        # Create ast of new code
+        code_ast_root = CodeParser().parse("cpp", code_str)
+        new_code_ast_root = CodeParser().parse("cuda", node.code_state)
+
+        immediate_reward = ComputeImmediateRewards(code_ast_root, new_code_ast_root).compute_all()
+        node.backpropagate(immediate_reward)
+
+    return root.bestChild(0)  # Return the best child of the root
+
+class SubsetMCTSNode:
+    def __init__(self, selected_actions: list, parent=None):
+        self.selected_actions = selected_actions  # Current subset
+        self.untried_actions = [a for a in TRANSFORMATION_ACTIONS if a not in selected_actions]
+        self.children = []
+        self.parent = parent
+        self.visits = 0
+        self.total_reward = 0.0
+
+    def is_fully_expanded(self):
+        return len(self.untried_actions) == 0
+
+    def expand(self):
+        action = self.untried_actions.pop()
+        new_subset = self.selected_actions + [action]
+        child = SubsetMCTSNode(new_subset, parent=self)
+        self.children.append(child)
+        return child
+
+    def best_child(self, exploration_weight=1.41):
+        best_score = float("-inf")
+        best_node = None
+        for child in self.children:
+            if child.visits == 0:
+                return child
+            exploit = child.total_reward / child.visits
+            explore = (2 * math.log(self.visits + 1) / child.visits) ** 0.5
+            score = exploit + exploration_weight * explore
+            if score > best_score:
+                best_score = score
+                best_node = child
+        return best_node
+
+    def backpropagate(self, reward):
+        self.visits += 1
+        self.total_reward += reward
+        if self.parent:
+            self.parent.backpropagate(reward)
+
+def subset_mcts_search(code_str: str, extracted_fields: str, iterations: int = 1000, exploration_weight: float = 1.41) -> SubsetMCTSNode:
+    root = SubsetMCTSNode([])
+
+    for _ in range(iterations):
+        node = root
+
         # Selection
-        while node.children:
-            node = node.best_child()
+        while not node.is_fully_expanded() and node.children:
+            node = node.best_child(exploration_weight)
+
         # Expansion
-        node.expand(code_str, code_ast_walk, action)
-        # Simulation (evaluate)
-        if node.children:
-            node = random.choice(node.children)
+        if not node.is_fully_expanded():
+            node = node.expand()
 
-        reward = compute_immediate_rewards(node.code_ast_root, node.transformed_ast_root)
-        node.backpropagate(reward)
-    return mcts_node.best_child(c_param=0).code
+        # Apply the selected subset of actions as a combined instruction
+        combined_prompt = "\n".join(node.selected_actions)
+        translated_code = modelInference().infer_transform(code_str, combined_prompt)
 
+        # Skip if generation fails
+        if not translated_code.strip():
+            continue
 
+        # Parse ASTs
+        cpp_ast = CodeParser().parse("cpp", code_str)
+        cuda_ast = CodeParser().parse("cuda", translated_code)
+
+        # Compute rewards
+        rewards = ComputeImmediateRewards(cpp_ast, cuda_ast).compute_all()
+
+        # Backpropagate
+        node.backpropagate(rewards)
+
+    return root.best_child(0) if root.children else root

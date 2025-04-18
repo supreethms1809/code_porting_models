@@ -1,7 +1,19 @@
+################# Deprecated #################
+# Delete this file later after testing
+
 import os
 from src.model_inference.deepseek_inference import modelInference
 
 class SourceCodeAnalyzer:
+    def __init__(self):
+        self.ir1 = 0
+        self.ir2 = 0
+        self.ir3 = 0
+        self.ir4 = 0
+        self.ir5 = 0
+        self.final_analysis_score = 0
+
+    # Loop analysis score based on the number of loops
     def loop_analysis_score(self, loop_analysis):
         return loop_analysis.get("score", 0)
 
@@ -41,4 +53,3 @@ class SourceCodeAnalyzer:
         analysis_results = modelInference().infer(code_ast)
         analysis_score = self.parseAnalysis(analysis_results)
         return analysis_score
-        

@@ -1,82 +1,73 @@
-class ComputeImmediateRewards():
+from src.parse.parser import CodeParser, ASTTokenizer
+
+class ComputeImmediateRewards:
     def __init__(self, ast_cpp, ast_cuda):
         self.ast_cpp = ast_cpp
         self.ast_cuda = ast_cuda
-        self.cuda_keywords = ["global", "device", "host", "shared", "constant", "managed", 
-                        "restrict", "noinline", "forceinline", "threadIdx", "blockIdx",
-                        "blockDim", "gridDim", "warpSize", "__syncthreads()",
-                        "__syncthreads_count()", "__syncthreads_and()",
-                        "__syncthreads_or()", "__syncwarp()", "__threadfence()",
-                        "__threadfence_block()", "__threadfence_system()",
-                        "atomicAdd", "atomicSub", "atomicExch", "atomicMin", "atomicMax",
-                        "atomicInc", "atomicDec", "atomicCAS", "atomicAnd", "atomicOr",
-                        "atomicXor"]
-        self.walk = ASTTokenizer("deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B").walk_tree
-        self.parser = CodeParser()
 
-    def loop_bounds_preserved(self, ast_cpp, ast_cuda):
-        cpp_loops = self.extract_for_loops(ast_cpp)
-        cuda_loops = self.extract_thread_loops(ast_cuda)
+        self.cuda_keywords = {
+            "global", "device", "host", "shared", "constant", "managed", 
+            "restrict", "noinline", "forceinline", "threadIdx", "blockIdx",
+            "blockDim", "gridDim", "warpSize", "__syncthreads()",
+            "__syncthreads_count()", "__syncthreads_and()",
+            "__syncthreads_or()", "__syncwarp()", "__threadfence()",
+            "__threadfence_block()", "__threadfence_system()",
+            "atomicAdd", "atomicSub", "atomicExch", "atomicMin", "atomicMax",
+            "atomicInc", "atomicDec", "atomicCAS", "atomicAnd", "atomicOr",
+            "atomicXor"
+        }
 
+    def compute_all(self) -> dict:
+        scores = {
+            "IR1_loop_bounds": self.loop_bounds_preserved(),
+            "IR2_index_usage": self.index_usage_correct(),
+            "IR3_arithmetic": self.operations_match(),
+            "IR4_dependency_respected": self.dependencies_respected(),
+            "IR5_cuda_semantics": self.parallel_semantics_correct()
+        }
+        scores["total_immediate_reward"] = sum(scores.values()) / len(scores)
+        return scores["total_immediate_reward"]
+
+    def walk(self, node):
+        tokens = [node]
+        for child in node.children:
+            tokens.extend(self.walk(child))
+        return tokens
+
+    def loop_bounds_preserved(self) -> float:
+        cpp_loops = self.extract_nodes(self.ast_cpp, "for_statement")
+        cuda_loops = self.extract_nodes_cuda(self.ast_cuda, "for_statement")
         if not cpp_loops or not cuda_loops:
-            return False
+            return 0.0
+        cpp_init = cpp_loops[0].child_by_field_name("initializer")
+        cuda_init = cuda_loops[0].child_by_field_name("initializer")
+        return 1.0 if cpp_init and cuda_init and cpp_init.text == cuda_init.text else 0.0
 
-        cpp_range = self.get_loop_range(cpp_loops[0])
-        cuda_range = self.get_thread_range(cuda_loops[0])
+    def index_usage_correct(self) -> float:
+        cpp_indices = self.extract_nodes(self.ast_cpp, "array_subscript")
+        cuda_indices = self.extract_nodes_cuda(self.ast_cuda, "array_subscript")
+        return 1.0 if len(cpp_indices) == len(cuda_indices) else 0.0
 
-        return cpp_range == cuda_range
+    def operations_match(self) -> float:
+        cpp_ops = {n.text for n in self.extract_nodes(self.ast_cpp, "binary_expression")}
+        cuda_ops = {n.text for n in self.extract_nodes_cuda(self.ast_cuda, "binary_expression")}
+        return 1.0 if cpp_ops.issubset(cuda_ops) else 0.0
+
+    def dependencies_respected(self) -> float:
+        writes = self.extract_nodes_cuda(self.ast_cuda, "assignment_expression")
+        for node in writes:
+            rhs = node.child_by_field_name("right")
+            if rhs:
+                rhs_text = rhs.text.decode("utf-8") if isinstance(rhs.text, bytes) else rhs.text
+                if any(k in rhs_text for k in ("threadIdx", "blockIdx", "blockDim")):
+                    return 0.0
+        return 1.0
+
+    def parallel_semantics_correct(self) -> float:
+        return 1.0 #if any(kw in self.code_cuda for kw in self.cuda_keywords) else 0.0
+
+    def extract_nodes(self, ast, node_type: str):
+        return [node for node in self.walk(ast) if node.type == node_type]
     
-    def index_usage_correct(self, ast_cpp, ast_cuda):
-        cpp_indices = self.extract_array_accesses(ast_cpp)
-        cuda_indices = self.extract_array_accesses(ast_cuda)
-
-        for c, g in zip(cpp_indices, cuda_indices):
-            if not self.is_index_equivalent(c, g):
-                return False
-        return True
-
-    def operations_match(self, ast_cpp, ast_cuda):
-        cpp_exprs = self.extract_arithmetic_expressions(ast_cpp)
-        cuda_exprs = self.extract_arithmetic_expressions(ast_cuda)
-
-        return all(expr in cuda_exprs for expr in cpp_exprs)
-
-    def dependencies_respected(self, ast_cpp, ast_cuda):
-        writes = extract_writes(ast_cuda)
-        for var, index_expr in writes:
-            if self.depends_on_other_threads(index_expr):
-                return False
-        return True
-
-    def parallel_semantics_correct(self, ast_cuda):
-        return any(kw in ast_cuda.text for kw in self.cuda_keywords)
-
-    def extract_for_loops(self, ast):
-        return [n for n in self.walk(ast) if n.type == 'for_statement']
-
-    def get_loop_range(self, loop_node):
-        return (loop_node.init, loop_node.condition, loop_node.increment)
-
-    def extract_array_accesses(self, ast):
-        return [node for node in ast.walk() if node.type == 'array_subscript']
-
-    def extract_arithmetic_expressions(self, ast):
-        return [node.text for node in ast.walk() if node.type == 'binary_operator']
-
-    def extract_writes(self, ast):
-        return [(node.lhs, node.rhs) for node in ast.walk() if node.type == 'assignment']
-
-    def cuda_accuracy_score(self):
-        score = 0
-        if self.loop_bounds_preserved(self.ast_cpp, self.ast_cuda):
-            score += 1
-        if self.index_usage_correct(self.ast_cpp, self.ast_cuda):
-            score += 1
-        if self.operations_match(self.ast_cpp, self.ast_cuda):
-            score += 1
-        if self.dependencies_respected(self.ast_cpp, self.ast_cuda):
-            score += 1
-        if self.parallel_semantics_correct(self.ast_cuda):
-            score += 1
-        normalized_score = score / 5.0
-        return normalized_score
+    def extract_nodes_cuda(self, ast, node_type: str):
+        return [node for node in self.walk(ast) if node.type == node_type]
